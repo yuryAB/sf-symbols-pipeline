@@ -22,12 +22,14 @@ Expected animation targets: ${(input.expectedAnimationTargets ?? []).join(", ") 
 
 Audit workflow:
 1. Run validate_svg_template with expectedSymbolName.
-2. Run inspect_svg_geometry and inspect group/path names, fills, strokes, open-path heuristics, and path order.
+2. Run inspect_svg_geometry and inspect group/path names, fills, strokes, hardcoded paint, bounds, open-path heuristics, and path order.
 3. Check whether the SVG looks template-like, not generic.
-4. If variable template sources exist, run compare_variable_sources.
-5. Generate or update an annotation plan for the expected rendering modes.
-6. Generate a Draw/Variable Draw plan if requested.
-7. Produce a prioritized fix plan for vector-editor edits, SF Symbols app annotations, and Xcode import.
+4. Check Regular-M against the original source icon when one exists; do not treat a regenerated symbolset as the fidelity source.
+5. For solid icons, flag overlapping or edge-touching filled bases that should be boolean-united, and flag duplicated fill+stroke visual layers.
+6. If variable template sources exist, run compare_variable_sources and inspect bounds drift across weights.
+7. Generate or update an annotation plan for the expected rendering modes.
+8. Generate a Draw/Variable Draw plan if requested.
+9. Produce a prioritized fix plan for vector-editor edits, SF Symbols app annotations, and Xcode import.
 
 Do not claim the symbol is SF Symbols-app validated unless the user provides evidence from the SF Symbols app.`;
 }

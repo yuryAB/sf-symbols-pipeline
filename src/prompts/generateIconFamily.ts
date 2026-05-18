@@ -40,8 +40,9 @@ Planning workflow:
 3. Recommend base SF Symbols candidates for each symbol where possible.
 4. Keep rendering mode strategy consistent across the family.
 5. Identify which symbols should support replace, variableColor, Draw, or whole-symbol effects.
-6. Resolve the vector editing environment and create symbol briefs before drawing.
-7. Validate each exported SVG, generate annotation plans, and test in Xcode.
+6. For converted icon families, use original source SVGs as fidelity references and make Regular-M match before deriving weights.
+7. Resolve the vector editing environment and create symbol briefs before drawing.
+8. Validate each exported SVG, inspect hardcoded paint/overlap/seam warnings, compare variable bounds drift, generate annotation plans, and test in Xcode.
 
-Preserve consistency, but do not flatten meaningful semantic differences just to force identical geometry.`;
+Preserve consistency, but do not flatten meaningful semantic differences just to force identical geometry. Solid bases should stay stable; badges and details may carry conservative weight variation.`;
 }

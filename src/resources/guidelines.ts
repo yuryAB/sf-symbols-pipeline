@@ -21,6 +21,10 @@ Core rules:
 - Prefer closed filled paths.
 - Convert live strokes to outlined paths before final export.
 - Avoid open paths, raster images, masks with fragile output, filters, blur, shadows, and manual gradients.
+- Do not leave hardcoded fill/stroke colors inside final Symbols artwork; rely on SF Symbols rendering classes and annotations so the symbol remains tintable.
+- Keep the original source SVG as the fidelity reference for conversions. Regular-M should match the source before generating lighter or heavier weights.
+- For solid icons, avoid weight changes that scale or distort the whole base. Keep static base geometry stable and vary badges/details conservatively.
+- Boolean-unite overlapping or edge-touching solid base parts into a single filled silhouette when they represent one visual mass.
 - Validate in the SF Symbols app before treating the symbol as ready.
 `,
   },
@@ -39,6 +43,9 @@ Recommended flow:
 - Draw Regular-S first unless a variable template requires coordinated Ultralight-S, Regular-S, and Black-S sources.
 - Keep layers named by semantic part, not by visual accident.
 - Convert final strokes and text to paths before export.
+- For stroke-only sources, outline the original strokes and preserve linecap/linejoin.
+- For solid sources, avoid duplicating fill and stroke as separate visible layers; generate one final silhouette per visual part.
+- Before final handoff, check Regular-M against the source icon and preview Ultralight, Regular, and Black for clipping, seams, and unintended shape drift.
 - Export SVG from the selected vector editor.
 - Run validation and geometry inspection here.
 - Import into the SF Symbols app for template validation and annotation.
@@ -60,6 +67,8 @@ Recommended flow:
 - Start from an official SF Symbols template exported from the SF Symbols app or a close base symbol.
 - Draw Regular-S first.
 - Keep layers named by semantic part, not by visual accident.
+- Keep Regular-M visually faithful to the original source icon before deriving other weights.
+- Avoid hardcoded paint in final Symbols artwork so Xcode tinting and rendering modes continue to work.
 - Export SVG from Figma.
 - Run validation and geometry inspection here.
 - Import into the SF Symbols app for template validation and annotation.
@@ -100,6 +109,9 @@ Rules:
 - Preserve path order.
 - Preserve semantic layer names.
 - Keep corresponding paths structurally compatible across weights.
+- Do not mix live stroke and fill on the same final visual part. Convert to one filled path or one filled silhouette per part.
+- For static solid bases, boolean-unite overlapping/edge-touching pieces to prevent SF Symbols preview cuts or seams.
+- Use bounds drift warnings as a cue to compare against the original source before accepting variable weights.
 
 Variable template rules:
 - Prefer a variable template when multiple weights/scales matter.
@@ -110,6 +122,7 @@ Variable template rules:
 - Keep path count equal.
 - Keep path order equal.
 - Keep corresponding path point counts equal.
+- Keep Regular-M as the visual anchor. Weight differences can be subtle if larger changes would deform a solid icon.
 `,
   },
   {

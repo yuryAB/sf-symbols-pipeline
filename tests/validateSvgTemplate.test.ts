@@ -21,7 +21,9 @@ async function writeFixture(
   await fs.writeFile(path.join(root, name), svg, "utf8");
 }
 
-function finalTemplateSvg(overrides: { body?: string } = {}): string {
+function finalTemplateSvg(
+  overrides: { body?: string; symbolBody?: string; symbolsExtra?: string } = {},
+): string {
   return `<svg viewBox="0 0 3300 2200">
   <g id="Notes">
     <text id="template-version">Template v.7.0</text>
@@ -39,8 +41,9 @@ function finalTemplateSvg(overrides: { body?: string } = {}): string {
   </g>
   <g id="Symbols">
     <g id="Regular-M">
-      <path id="Regular-M.valid.layer" d="M1 1 L9 1 L9 9 Z"/>
+      ${overrides.symbolBody ?? '<path id="Regular-M.valid.layer" d="M1 1 L9 1 L9 9 Z"/>'}
     </g>
+    ${overrides.symbolsExtra ?? ""}
   </g>
   ${overrides.body ?? ""}
 </svg>`;
@@ -97,6 +100,74 @@ describe("validate_svg_template", () => {
       "Generated from valid.symbol",
     );
     expect(report.template?.text.disallowedOutsideNotes).toHaveLength(0);
+  });
+
+  it("rejects hardcoded paint inside final Symbols artwork", async () => {
+    const { workspace, root } = await tempWorkspace();
+    await writeFixture(
+      root,
+      "hardcoded.symbol.svg",
+      finalTemplateSvg({
+        symbolBody:
+          '<path id="Regular-M.hardcoded.layer" fill="#2c5e51" d="M1 1 L9 1 L9 9 Z"/>',
+      }),
+    );
+
+    const report = await runValidateSvgTemplate(workspace, {
+      svgPath: "hardcoded.symbol.svg",
+      stage: "sf-symbol-template-svg",
+      strict: true,
+    });
+
+    expect(report.passed).toBe(false);
+    expect(report.errors.join(" ")).toMatch(/hardcoded fill\/stroke colors/);
+    expect(report.quality?.glyphs[0]?.hardcodedPaintPathCount).toBe(1);
+  });
+
+  it("accepts final Symbol paths that rely on SF Symbols classes for paint", async () => {
+    const { workspace, root } = await tempWorkspace();
+    await writeFixture(
+      root,
+      "classed.symbol.svg",
+      finalTemplateSvg({
+        symbolBody:
+          '<path id="Regular-M.classed.layer" class="monochrome-0 multicolor-0:tintColor hierarchical-0:primary" d="M1 1 L9 1 L9 9 Z"/>',
+      }),
+    );
+
+    const report = await runValidateSvgTemplate(workspace, {
+      svgPath: "classed.symbol.svg",
+      stage: "sf-symbol-template-svg",
+      strict: true,
+    });
+
+    expect(report.passed).toBe(true);
+    expect(report.quality?.glyphs[0]?.hardcodedPaintPathCount).toBe(0);
+  });
+
+  it("warns when filled paths overlap enough to risk solid-symbol cuts", async () => {
+    const { workspace, root } = await tempWorkspace();
+    await writeFixture(
+      root,
+      "overlap.symbol.svg",
+      finalTemplateSvg({
+        symbolBody: [
+          '<path id="Regular-M.solid.base" d="M1 1 L9 1 L9 9 L1 9 Z"/>',
+          '<path id="Regular-M.solid.top" d="M2 2 L8 2 L8 8 L2 8 Z"/>',
+        ].join(""),
+      }),
+    );
+
+    const report = await runValidateSvgTemplate(workspace, {
+      svgPath: "overlap.symbol.svg",
+      stage: "sf-symbol-template-svg",
+    });
+
+    expect(report.passed).toBe(true);
+    expect(report.warnings.join(" ")).toMatch(/overlap heavily/);
+    expect(report.quality?.glyphs[0]?.warnings.join(" ")).toMatch(
+      /boolean union/,
+    );
   });
 
   it.each([
@@ -199,6 +270,30 @@ describe("validate_svg_template", () => {
     expect(variableReport.errors.join(" ")).toMatch(
       /missing glyph for Black-S/,
     );
+  });
+
+  it("rejects variable templates with incompatible path counts across weights", async () => {
+    const { workspace, root } = await tempWorkspace();
+    await writeFixture(
+      root,
+      "path-counts.symbol.svg",
+      finalTemplateSvg({
+        symbolsExtra: [
+          '<g id="Ultralight-S"><path id="part-0" d="M1 1 L9 1 L9 9 Z"/></g>',
+          '<g id="Regular-S"><path id="part-0" d="M1 1 L9 1 L9 9 Z"/><path id="part-1" d="M2 2 L8 2 L8 8 Z"/></g>',
+          '<g id="Black-S"><path id="part-0" d="M1 1 L9 1 L9 9 Z"/></g>',
+        ].join(""),
+      }),
+    );
+
+    const report = await runValidateSvgTemplate(workspace, {
+      svgPath: "path-counts.symbol.svg",
+      stage: "sf-symbol-template-svg",
+      requiresVariableTemplate: true,
+    });
+
+    expect(report.passed).toBe(false);
+    expect(report.errors.join(" ")).toMatch(/variable glyph path counts differ/);
   });
 
   it("accepts safe SVG 1.1 DOCTYPE exports and rejects ENTITY declarations", async () => {

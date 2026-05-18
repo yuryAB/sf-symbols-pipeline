@@ -8,6 +8,7 @@ import {
   pathIdentity,
   type GeometryReport,
 } from "./templateAnalysis.js";
+import type { PathBounds } from "./pathAnalysis.js";
 
 export type VariableCompatibilityReport = {
   passed: boolean;
@@ -18,6 +19,7 @@ export type VariableCompatibilityReport = {
     pathOrderLikelyMatches: boolean;
     pointCountLikelyMatches: boolean;
     groupStructureLikelyMatches: boolean;
+    boundsLikelyStable: boolean;
   };
   diffs: Record<string, unknown>;
   writtenFiles?: string[];
@@ -153,6 +155,28 @@ export function compareGeometryReports(reports: {
     );
   }
 
+  const boundsDiffs = pathCountMatches
+    ? reports.regular.paths.map((regularPath, index) => ({
+        path: pathIdentity(regularPath),
+        ultralight: compareBounds(
+          reports.ultralight.paths[index]?.bounds,
+          regularPath.bounds,
+        ),
+        black: compareBounds(reports.black.paths[index]?.bounds, regularPath.bounds),
+      }))
+    : [];
+  const boundsLikelyStable =
+    pathCountMatches &&
+    boundsDiffs.every(
+      (diff) => diff.ultralight.stable && diff.black.stable,
+    );
+
+  if (!boundsLikelyStable) {
+    warnings.push(
+      "Heuristic: path bounds drift significantly across variable sources. Preserve original proportions and vary weight by conservative stroke/silhouette changes.",
+    );
+  }
+
   return {
     passed: errors.length === 0,
     errors,
@@ -162,6 +186,7 @@ export function compareGeometryReports(reports: {
       pathOrderLikelyMatches,
       pointCountLikelyMatches,
       groupStructureLikelyMatches,
+      boundsLikelyStable,
     },
     diffs: {
       pathCounts,
@@ -170,6 +195,7 @@ export function compareGeometryReports(reports: {
       commandSignatures,
       fillStrokeSignatures,
       groupSignatures,
+      boundsDiffs,
     },
   };
 }
@@ -179,4 +205,49 @@ function arraysEqual<T>(left: T[], right: T[]): boolean {
     left.length === right.length &&
     left.every((value, index) => value === right[index])
   );
+}
+
+function compareBounds(
+  candidate?: PathBounds,
+  regular?: PathBounds,
+): {
+  stable: boolean;
+  centerDriftRatio?: number;
+  widthDeltaRatio?: number;
+  heightDeltaRatio?: number;
+  aspectDeltaRatio?: number;
+  reason?: string;
+} {
+  if (!candidate || !regular) {
+    return { stable: true, reason: "bounds unavailable" };
+  }
+
+  const referenceSize = Math.max(regular.width, regular.height, 0.0001);
+  const centerDriftRatio =
+    Math.hypot(
+      candidate.centerX - regular.centerX,
+      candidate.centerY - regular.centerY,
+    ) / referenceSize;
+  const widthDeltaRatio =
+    Math.abs(candidate.width - regular.width) / Math.max(regular.width, 0.0001);
+  const heightDeltaRatio =
+    Math.abs(candidate.height - regular.height) /
+    Math.max(regular.height, 0.0001);
+  const regularAspect = regular.width / Math.max(regular.height, 0.0001);
+  const candidateAspect =
+    candidate.width / Math.max(candidate.height, 0.0001);
+  const aspectDeltaRatio =
+    Math.abs(candidateAspect - regularAspect) / Math.max(regularAspect, 0.0001);
+
+  return {
+    stable:
+      centerDriftRatio <= 0.35 &&
+      widthDeltaRatio <= 0.5 &&
+      heightDeltaRatio <= 0.5 &&
+      aspectDeltaRatio <= 0.45,
+    centerDriftRatio,
+    widthDeltaRatio,
+    heightDeltaRatio,
+    aspectDeltaRatio,
+  };
 }

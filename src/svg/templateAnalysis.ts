@@ -11,6 +11,7 @@ import {
   analyzePathData,
   attrsHaveFill,
   attrsHaveStroke,
+  type PathBounds,
   styleOrAttr,
 } from "./pathAnalysis.js";
 
@@ -31,7 +32,13 @@ export type GeometryPath = {
   commandTypes?: string[];
   hasStroke: boolean;
   hasFill: boolean;
+  fillValue?: string;
+  strokeValue?: string;
+  hasHardcodedPaint: boolean;
   isProbablyClosed?: boolean;
+  bounds?: PathBounds;
+  approxArea?: number;
+  parentGroups?: string[];
 };
 
 export type GeometryReport = {
@@ -101,12 +108,39 @@ export type SfSymbolTemplateReport = {
   };
 };
 
+export type GlyphQualityReport = {
+  glyph: string;
+  pathCount: number;
+  filledPathCount: number;
+  strokedPathCount: number;
+  hardcodedPaintPathCount: number;
+  bounds?: PathBounds;
+  paths: Array<{
+    id?: string;
+    label?: string;
+    index: number;
+    hasFill: boolean;
+    hasStroke: boolean;
+    hasHardcodedPaint: boolean;
+    fillValue?: string;
+    strokeValue?: string;
+    bounds?: PathBounds;
+  }>;
+  warnings: string[];
+};
+
+export type SvgQualityReport = {
+  glyphs: GlyphQualityReport[];
+  warnings: string[];
+};
+
 export type ValidationReport = {
   stage: ValidationStage;
   passed: boolean;
   errors: string[];
   warnings: string[];
   stats: SvgStats;
+  quality?: SvgQualityReport;
   template?: SfSymbolTemplateReport;
   writtenFiles?: string[];
 };
@@ -145,6 +179,7 @@ export function inspectGeometry(document: SvgDocument): GeometryReport {
     node: SvgElement,
     depth: number,
     parentGroup?: string,
+    parentGroups: string[] = [],
   ): void => {
     const name = node.name.toLowerCase();
     const id = node.attrs.id;
@@ -161,28 +196,15 @@ export function inspectGeometry(document: SvgDocument): GeometryReport {
     }
 
     if (name === "path") {
-      const pathAnalysis = analyzePathData(node.attrs.d);
-      const hasStroke = attrsHaveStroke(node.attrs);
-      const hasFill = attrsHaveFill(node.attrs);
-
-      paths.push({
-        id,
-        label,
-        index: paths.length,
-        parentGroup,
-        commandCount: pathAnalysis.commandCount,
-        estimatedPointCount: pathAnalysis.estimatedPointCount,
-        commandTypes: pathAnalysis.commandTypes,
-        hasStroke,
-        hasFill,
-        isProbablyClosed: pathAnalysis.isProbablyClosed,
-      });
+      paths.push(pathGeometry(node, paths.length, parentGroup, parentGroups));
     }
 
     const nextParentGroup =
       name === "g" ? groupName || parentGroup : parentGroup;
+    const nextParentGroups =
+      name === "g" && groupName ? [...parentGroups, groupName] : parentGroups;
     for (const child of node.children) {
-      visit(child, depth + 1, nextParentGroup);
+      visit(child, depth + 1, nextParentGroup, nextParentGroups);
     }
   };
 
@@ -213,6 +235,7 @@ export function validateTemplateHeuristics(
   const warnings = [...geometry.warnings];
   const errors: string[] = [];
   let template: SfSymbolTemplateReport | undefined;
+  let quality: SvgQualityReport | undefined;
 
   const stats: SvgStats = {
     pathCount: geometry.paths.length,
@@ -328,7 +351,9 @@ export function validateTemplateHeuristics(
       requiresVariableTemplate: options.requiresVariableTemplate ?? false,
     });
     template = templateResult.report;
+    quality = templateResult.quality;
     errors.push(...templateResult.errors);
+    warnings.push(...templateResult.warnings);
   }
 
   return {
@@ -337,6 +362,7 @@ export function validateTemplateHeuristics(
     errors,
     warnings,
     stats,
+    ...(quality ? { quality } : {}),
     ...(template ? { template } : {}),
   };
 }
@@ -348,7 +374,9 @@ type TextElementContext = {
 
 type SfSymbolTemplateAnalysis = {
   report: SfSymbolTemplateReport;
+  quality: SvgQualityReport;
   errors: string[];
+  warnings: string[];
 };
 
 function analyzeSfSymbolTemplate(
@@ -359,9 +387,11 @@ function analyzeSfSymbolTemplate(
   },
 ): SfSymbolTemplateAnalysis {
   const errors: string[] = [];
+  const warnings: string[] = [];
   const notesGroup = findNamedGroup(document.root, "Notes");
   const guidesGroup = findNamedGroup(document.root, "Guides");
   const symbolsGroup = findNamedGroup(document.root, "Symbols");
+  const quality = analyzeSymbolsQuality(symbolsGroup);
   const requiredGroups = {
     Notes: Boolean(notesGroup),
     Guides: Boolean(guidesGroup),
@@ -459,6 +489,29 @@ function analyzeSfSymbolTemplate(
     presentGlyphs.push(glyph);
   }
 
+  if (input.requiresVariableTemplate) {
+    const comparablePathCounts = VARIABLE_TEMPLATE_GLYPHS.map(
+      (glyph) => pathCounts[glyph] ?? 0,
+    ).filter((pathCount) => pathCount > 0);
+    const uniquePathCounts = uniqueValues(
+      comparablePathCounts.map((pathCount) => String(pathCount)),
+    );
+
+    if (uniquePathCounts.length > 1) {
+      errors.push(
+        `variable glyph path counts differ: ${VARIABLE_TEMPLATE_GLYPHS.map((glyph) => `${glyph}=${pathCounts[glyph] ?? 0}`).join(", ")}`,
+      );
+    }
+  }
+
+  if (quality.glyphs.some((glyph) => glyph.hardcodedPaintPathCount > 0)) {
+    errors.push(
+      "hardcoded fill/stroke colors were found inside Symbols; final templates must rely on SF Symbols classes/annotations for tinting.",
+    );
+  }
+
+  warnings.push(...quality.warnings);
+
   return {
     report: {
       targetGlyph: input.targetGlyph,
@@ -497,8 +550,275 @@ function analyzeSfSymbolTemplate(
         disallowedOutsideNotes: disallowedText.map(textSummary),
       },
     },
+    quality,
     errors,
+    warnings,
   };
+}
+
+function analyzeSymbolsQuality(symbolsGroup?: SvgElement): SvgQualityReport {
+  if (!symbolsGroup) {
+    return { glyphs: [], warnings: [] };
+  }
+
+  const glyphs = symbolsGroup.children
+    .filter((child) => child.name.toLowerCase() === "g")
+    .map((glyphGroup) => {
+      const glyphName = elementIdentifier(glyphGroup) ?? "unnamed";
+      const pathElements = flattenSvgElements(glyphGroup).filter(
+        (element) =>
+          element.name.toLowerCase() === "path" &&
+          typeof element.attrs.d === "string" &&
+          element.attrs.d.trim().length > 0,
+      );
+      const paths = pathElements.map((pathElement, index) =>
+        pathGeometry(pathElement, index, glyphName, ["Symbols", glyphName]),
+      );
+      const glyphWarnings = glyphQualityWarnings(glyphName, paths);
+
+      return {
+        glyph: glyphName,
+        pathCount: paths.length,
+        filledPathCount: paths.filter((path) => path.hasFill).length,
+        strokedPathCount: paths.filter((path) => path.hasStroke).length,
+        hardcodedPaintPathCount: paths.filter((path) => path.hasHardcodedPaint)
+          .length,
+        ...(unionBounds(paths.map((path) => path.bounds))
+          ? { bounds: unionBounds(paths.map((path) => path.bounds)) }
+          : {}),
+        paths: paths.map((path) => ({
+          ...(path.id ? { id: path.id } : {}),
+          ...(path.label ? { label: path.label } : {}),
+          index: path.index,
+          hasFill: path.hasFill,
+          hasStroke: path.hasStroke,
+          hasHardcodedPaint: path.hasHardcodedPaint,
+          ...(path.fillValue ? { fillValue: path.fillValue } : {}),
+          ...(path.strokeValue ? { strokeValue: path.strokeValue } : {}),
+          ...(path.bounds ? { bounds: path.bounds } : {}),
+        })),
+        warnings: glyphWarnings,
+      };
+    });
+
+  return {
+    glyphs,
+    warnings: glyphs.flatMap((glyph) => glyph.warnings),
+  };
+}
+
+function pathGeometry(
+  node: SvgElement,
+  index: number,
+  parentGroup?: string,
+  parentGroups: string[] = [],
+): GeometryPath {
+  const pathAnalysis = analyzePathData(node.attrs.d);
+  const fillValue = styleOrAttr(node.attrs, "fill");
+  const strokeValue = styleOrAttr(node.attrs, "stroke");
+  const hasStroke = attrsHaveStroke(node.attrs);
+  const hasFill = attrsHaveFill(node.attrs);
+
+  return {
+    id: node.attrs.id,
+    label: elementLabel(node),
+    index,
+    parentGroup,
+    parentGroups,
+    commandCount: pathAnalysis.commandCount,
+    estimatedPointCount: pathAnalysis.estimatedPointCount,
+    commandTypes: pathAnalysis.commandTypes,
+    hasStroke,
+    hasFill,
+    ...(fillValue ? { fillValue } : {}),
+    ...(strokeValue ? { strokeValue } : {}),
+    hasHardcodedPaint:
+      hasHardcodedPaint(fillValue, hasFill) ||
+      hasHardcodedPaint(strokeValue, hasStroke),
+    isProbablyClosed: pathAnalysis.isProbablyClosed,
+    ...(pathAnalysis.bounds ? { bounds: pathAnalysis.bounds } : {}),
+    ...(pathAnalysis.approxArea !== undefined
+      ? { approxArea: pathAnalysis.approxArea }
+      : {}),
+  };
+}
+
+function glyphQualityWarnings(
+  glyphName: string,
+  paths: GeometryPath[],
+): string[] {
+  const warnings: string[] = [];
+  const hardcodedPaintPaths = paths.filter((path) => path.hasHardcodedPaint);
+  const fillStrokePaths = paths.filter((path) => path.hasFill && path.hasStroke);
+  const filledPaths = paths.filter((path) => path.hasFill && path.bounds);
+
+  if (hardcodedPaintPaths.length > 0) {
+    warnings.push(
+      `Glyph ${glyphName}: ${hardcodedPaintPaths.length} path(s) use hardcoded fill/stroke paint; final Symbols artwork should stay tintable.`,
+    );
+  }
+
+  if (fillStrokePaths.length > 0) {
+    warnings.push(
+      `Glyph ${glyphName}: ${fillStrokePaths.length} path(s) combine fill and stroke; convert to one filled silhouette per visual part before final export.`,
+    );
+  }
+
+  for (let leftIndex = 0; leftIndex < filledPaths.length; leftIndex += 1) {
+    for (
+      let rightIndex = leftIndex + 1;
+      rightIndex < filledPaths.length;
+      rightIndex += 1
+    ) {
+      const left = filledPaths[leftIndex];
+      const right = filledPaths[rightIndex];
+      const overlap = boundsOverlap(left.bounds, right.bounds);
+      const smallerArea = Math.min(
+        Math.max(boundsArea(left.bounds), 0.0001),
+        Math.max(boundsArea(right.bounds), 0.0001),
+      );
+      const overlapRatio = overlap.area / smallerArea;
+
+      if (overlapRatio > 0.55) {
+        warnings.push(
+          `Glyph ${glyphName}: filled path bounds overlap heavily (${pathIdentity(left)} with ${pathIdentity(right)}). Solid bases may need boolean union to avoid visual cuts.`,
+        );
+      } else if (boundsTouchAtSeam(left.bounds, right.bounds)) {
+        warnings.push(
+          `Glyph ${glyphName}: filled path bounds touch along an edge (${pathIdentity(left)} with ${pathIdentity(right)}). Check for SF Symbols preview seams; boolean-unite static solid bases when possible.`,
+        );
+      }
+    }
+  }
+
+  return warnings;
+}
+
+function hasHardcodedPaint(
+  value: string | undefined,
+  isActivePaint: boolean,
+): boolean {
+  if (!value || !isActivePaint) {
+    return false;
+  }
+
+  const normalized = value.trim().toLowerCase();
+  if (
+    normalized === "none" ||
+    normalized === "transparent" ||
+    normalized === "currentcolor" ||
+    normalized === "inherit" ||
+    normalized === "context-fill" ||
+    normalized === "context-stroke" ||
+    normalized.startsWith("var(") ||
+    normalized.startsWith("url(")
+  ) {
+    return false;
+  }
+
+  return (
+    normalized.startsWith("#") ||
+    normalized.startsWith("rgb(") ||
+    normalized.startsWith("rgba(") ||
+    normalized.startsWith("hsl(") ||
+    normalized.startsWith("hsla(") ||
+    normalized.startsWith("color(") ||
+    /^[a-z]+$/i.test(normalized)
+  );
+}
+
+function unionBounds(
+  boundsList: Array<PathBounds | undefined>,
+): PathBounds | undefined {
+  const concreteBounds = boundsList.filter(
+    (bounds): bounds is PathBounds => Boolean(bounds),
+  );
+
+  if (concreteBounds.length === 0) {
+    return undefined;
+  }
+
+  const minX = Math.min(...concreteBounds.map((bounds) => bounds.minX));
+  const minY = Math.min(...concreteBounds.map((bounds) => bounds.minY));
+  const maxX = Math.max(...concreteBounds.map((bounds) => bounds.maxX));
+  const maxY = Math.max(...concreteBounds.map((bounds) => bounds.maxY));
+  const width = maxX - minX;
+  const height = maxY - minY;
+
+  return {
+    minX,
+    minY,
+    maxX,
+    maxY,
+    width,
+    height,
+    centerX: minX + width / 2,
+    centerY: minY + height / 2,
+  };
+}
+
+function boundsArea(bounds?: PathBounds): number {
+  if (!bounds) {
+    return 0;
+  }
+
+  return Math.max(bounds.width, 0) * Math.max(bounds.height, 0);
+}
+
+function boundsOverlap(
+  left?: PathBounds,
+  right?: PathBounds,
+): { area: number; width: number; height: number } {
+  if (!left || !right) {
+    return { area: 0, width: 0, height: 0 };
+  }
+
+  const width = Math.max(
+    0,
+    Math.min(left.maxX, right.maxX) - Math.max(left.minX, right.minX),
+  );
+  const height = Math.max(
+    0,
+    Math.min(left.maxY, right.maxY) - Math.max(left.minY, right.minY),
+  );
+
+  return {
+    area: width * height,
+    width,
+    height,
+  };
+}
+
+function boundsTouchAtSeam(
+  left?: PathBounds,
+  right?: PathBounds,
+): boolean {
+  if (!left || !right) {
+    return false;
+  }
+
+  const epsilon = 0.05;
+  const horizontalOverlap = Math.max(
+    0,
+    Math.min(left.maxX, right.maxX) - Math.max(left.minX, right.minX),
+  );
+  const verticalOverlap = Math.max(
+    0,
+    Math.min(left.maxY, right.maxY) - Math.max(left.minY, right.minY),
+  );
+  const minWidth = Math.max(Math.min(left.width, right.width), 0.0001);
+  const minHeight = Math.max(Math.min(left.height, right.height), 0.0001);
+  const verticalSeam =
+    Math.abs(left.maxY - right.minY) <= epsilon ||
+    Math.abs(right.maxY - left.minY) <= epsilon;
+  const horizontalSeam =
+    Math.abs(left.maxX - right.minX) <= epsilon ||
+    Math.abs(right.maxX - left.minX) <= epsilon;
+
+  return (
+    (verticalSeam && horizontalOverlap / minWidth > 0.35) ||
+    (horizontalSeam && verticalOverlap / minHeight > 0.35)
+  );
 }
 
 function collectTextContexts(root: SvgElement): TextElementContext[] {

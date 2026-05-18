@@ -82,6 +82,9 @@ export function validationReportMarkdown(
       { title: "Errors", body: bulletList(report.errors) },
       { title: "Warnings", body: bulletList(report.warnings) },
       { title: "Stats", body: fencedJson(report.stats) },
+      ...(report.quality
+        ? [{ title: "Quality Diagnostics", body: fencedJson(report.quality) }]
+        : []),
       ...(report.template
         ? [{ title: "SF Symbol Template", body: fencedJson(report.template) }]
         : []),

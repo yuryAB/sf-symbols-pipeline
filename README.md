@@ -19,8 +19,8 @@ The server exposes MCP tools, resources, and prompts for iOS and macOS teams pre
 - Helps agents choose or set up an SVG-capable vector editor before drawing.
 - Points agents to official Apple SF Symbols resources and template-export guidance.
 - Validates exported SVG files with practical SF Symbols readiness checks.
-- Inspects SVG groups, paths, ids, fills, strokes, and path complexity.
-- Compares variable symbol sources such as Ultralight-S, Regular-S, and Black-S.
+- Inspects SVG groups, paths, ids, fills, strokes, hardcoded paint, approximate bounds, overlap risk, and path complexity.
+- Compares variable symbol sources such as Ultralight-S, Regular-S, and Black-S, including structural compatibility and approximate bounds drift.
 - Generates annotation plans, Draw and Variable Draw guide plans, import checklists, Xcode asset scaffolds, and SwiftUI/UIKit snippets.
 - Constrains all file reads and writes to `SF_SYMBOLS_WORKSPACE` or the process current working directory.
 
@@ -176,21 +176,23 @@ Until then, use the GitHub `npx` command.
 1. Run `resolve_design_environment` to choose the vector editor/tooling and get official Apple links.
 2. Use the SF Symbols app to export the template for the closest base symbol.
 3. Create or edit the symbol design in the selected SVG-capable vector editor.
-4. Export the SVG from the selected vector editor.
-5. Run `validate_svg_template` with the default `artwork-svg` stage for vector-editor preflight.
-6. Run `inspect_svg_geometry`.
-7. If using variable templates, run `compare_variable_sources`.
-8. Run `generate_annotation_plan`.
-9. If using Draw/Variable Draw, run `generate_draw_guide_plan`.
-10. Run `generate_import_checklist`.
-11. Import the SVG into the SF Symbols app.
-12. Validate the template in the SF Symbols app.
-13. Apply rendering/animation annotations manually or semi-manually.
-14. Export final symbol from SF Symbols app.
-15. Run `validate_svg_template` with `stage: "sf-symbol-template-svg"` before Xcode handoff.
-16. Run `create_xcassets_symbol_set` when an asset catalog or Xcode integration is needed.
-17. Run `generate_swift_usage`.
-18. Test in Xcode previews/device.
+4. When converting an existing icon, keep the original SVG as the geometry reference and make Regular-M the fidelity anchor.
+5. For stroke-only sources, outline strokes while preserving linecap/linejoin; for solid sources, boolean-unite static overlapping bases instead of scaling or duplicating fill+stroke layers.
+6. Export the SVG from the selected vector editor.
+7. Run `validate_svg_template` with the default `artwork-svg` stage for vector-editor preflight.
+8. Run `inspect_svg_geometry`.
+9. If using variable templates, run `compare_variable_sources` and inspect bounds drift.
+10. Run `generate_annotation_plan`.
+11. If using Draw/Variable Draw, run `generate_draw_guide_plan`.
+12. Run `generate_import_checklist`.
+13. Import the SVG into the SF Symbols app.
+14. Validate the template in the SF Symbols app.
+15. Apply rendering/animation annotations manually or semi-manually.
+16. Export final symbol from SF Symbols app.
+17. Run `validate_svg_template` with `stage: "sf-symbol-template-svg"` before Xcode handoff.
+18. Run `create_xcassets_symbol_set` when an asset catalog or Xcode integration is needed.
+19. Run `generate_swift_usage`.
+20. Test in Xcode previews/device.
 
 ## Resources
 
@@ -238,18 +240,19 @@ Validates an exported SVG with practical SF Symbols readiness heuristics. The de
 - no raster `<image>` tags
 - no live text
 - detects filters, gradients, strokes, missing `viewBox`, missing groups, missing IDs, generic IDs, and likely open paths
+- estimates path bounds and reports final-template quality diagnostics for hardcoded paint, fill/stroke duplication, overlapping filled paths, and edge-touching filled paths that may preview as cuts or seams
 
-Use `stage: "sf-symbol-template-svg"` for final SVGs intended for SF Symbols/Xcode import. This stage requires `Notes`, `Guides`, `Symbols`, `template-version`, `Baseline-S/M/L`, `Capline-S/M/L`, target margins such as `left-margin-Regular-M`, and a target glyph group such as `Regular-M` with path data. Text is allowed only inside `Notes` in this stage.
+Use `stage: "sf-symbol-template-svg"` for final SVGs intended for SF Symbols/Xcode import. This stage requires `Notes`, `Guides`, `Symbols`, `template-version`, `Baseline-S/M/L`, `Capline-S/M/L`, target margins such as `left-margin-Regular-M`, and a target glyph group such as `Regular-M` with path data. Text is allowed only inside `Notes` in this stage. Final Symbols artwork with hardcoded fill/stroke colors is rejected so custom symbols remain tintable in Xcode.
 
 Optionally writes `validation-report.json` and `validation-report.md`.
 
 ### `inspect_svg_geometry`
 
-Returns a readable structural map of groups and paths, including ids, labels, parent groups, command counts, estimated point counts, fill/stroke flags, and likely closed-path status. Optionally writes `geometry-report.json` and `geometry-report.md`.
+Returns a readable structural map of groups and paths, including ids, labels, parent groups, command counts, estimated point counts, fill/stroke flags, paint values, hardcoded-paint flags, approximate bounds/area, and likely closed-path status. Optionally writes `geometry-report.json` and `geometry-report.md`.
 
 ### `compare_variable_sources`
 
-Compares Ultralight-S, Regular-S, and Black-S SVG sources. It checks path counts, likely path order, estimated point counts, fill/stroke consistency, command signatures, and group structure. Point checks are heuristic and reported as `pointCountLikelyMatches`.
+Compares Ultralight-S, Regular-S, and Black-S SVG sources. It checks path counts, likely path order, estimated point counts, fill/stroke consistency, command signatures, group structure, and approximate path-bounds stability. Point and bounds checks are heuristic and reported as `pointCountLikelyMatches` and `boundsLikelyStable`.
 
 Optionally writes `variable-compatibility-report.json` and `variable-compatibility-report.md`.
 
