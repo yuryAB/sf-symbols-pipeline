@@ -1,6 +1,6 @@
 ---
 name: sfsp
-description: Use this skill for SF Symbols Pipeline work: custom SF Symbols, exported SVG validation, symbol geometry inspection, variable symbol source comparison, rendering or animation annotation planning, Xcode .symbolset assets, and SwiftUI/UIKit usage snippets.
+description: "Use this skill for SF Symbols Pipeline work: custom SF Symbols, exported SVG validation, symbol geometry inspection, variable symbol source comparison, rendering or animation annotation planning, Xcode .symbolset assets, and SwiftUI/UIKit usage snippets."
 ---
 
 # SF Symbols Pipeline
