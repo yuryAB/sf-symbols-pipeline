@@ -1,9 +1,7 @@
-import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { bulletList, reportMarkdown } from "../output/markdown.js";
 import { writeJsonArtifact, writeMarkdownArtifact } from "../output/writers.js";
 import type { Workspace } from "../workspace.js";
-import { safeTool, toolSuccess } from "./result.js";
 
 export const GenerateMagicReplacePlanInputSchema = z.object({
   familyName: z.string().min(1),
@@ -127,27 +125,4 @@ export async function generateMagicReplacePlan(
   }
 
   return output;
-}
-
-export function registerGenerateMagicReplacePlanTool(
-  server: McpServer,
-  workspace: Workspace,
-): void {
-  server.registerTool(
-    "generate_magic_replace_plan",
-    {
-      title: "Generate Magic Replace Plan",
-      description:
-        "Generate a structure plan for related symbols that should transition well with replace effects.",
-      inputSchema: GenerateMagicReplacePlanInputSchema,
-    },
-    (args) =>
-      safeTool(async () => {
-        const result = await generateMagicReplacePlan(workspace, args);
-        return toolSuccess(
-          result,
-          `Generated replace-family plan with ${result.warnings.length} warning(s).`,
-        );
-      }),
-  );
 }

@@ -61,7 +61,7 @@ Recommended flow:
 
 Compatibility resource for existing Figma-oriented workflows. Prefer sf-symbols://guidelines/vector-editor-to-sf-symbols for new editor-agnostic workflows.
 
-Use the official Figma MCP for Figma operations when Figma is the selected editor. This server works with exported SVG files, JSON manifests, and local project folders.
+Use the agent's Figma integration for Figma operations when Figma is the selected editor. This helper works with exported SVG files, JSON manifests, and local project folders.
 
 Recommended flow:
 - Start from an official SF Symbols template exported from the SF Symbols app or a close base symbol.
@@ -137,7 +137,7 @@ Plan custom symbols for:
 - Palette
 - Multicolor
 
-This MCP can generate annotation plans, but it must not claim annotations are already applied unless a file format actually contains them and they were validated.
+This skill can generate annotation plans, but it must not claim annotations are already applied unless a file format actually contains them and they were validated.
 
 Use monochrome as the baseline. For hierarchical, group primary, secondary, and tertiary layers by semantic importance. For palette, plan foregroundStyle mapping. For multicolor, keep colors intentional, sparse, and readable in light/dark and high-contrast environments.
 `,
@@ -177,7 +177,7 @@ Layer-sensitive effects benefit from stable, named, semantically separated layer
     title: "Draw And Variable Draw Guidelines",
     text: `# Draw And Variable Draw Guidelines
 
-For Draw and Variable Draw, this MCP generates a guide point plan only. Final guide points must be applied and validated in the SF Symbols app.
+For Draw and Variable Draw, this skill generates a guide point plan only. Final guide points must be applied and validated in the SF Symbols app.
 
 Recommended workflow:
 - Annotate Regular first.

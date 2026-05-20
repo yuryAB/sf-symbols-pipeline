@@ -1,4 +1,3 @@
-import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { bulletList, reportMarkdown } from "../output/markdown.js";
 import { writeJsonArtifact, writeMarkdownArtifact } from "../output/writers.js";
@@ -8,7 +7,6 @@ import {
   WorkspacePathSchema,
 } from "../schemas/common.js";
 import type { Workspace } from "../workspace.js";
-import { safeTool, toolSuccess } from "./result.js";
 
 const SemanticPartSchema = z.object({
   name: z.string().min(1),
@@ -185,28 +183,6 @@ export async function generateAnnotationPlan(
   }
 
   return output;
-}
-
-export function registerGenerateAnnotationPlanTool(
-  server: McpServer,
-  workspace: Workspace,
-): void {
-  server.registerTool(
-    "generate_annotation_plan",
-    {
-      title: "Generate Annotation Plan",
-      description: "Generate a plan for SF Symbols app rendering annotations.",
-      inputSchema: GenerateAnnotationPlanInputSchema,
-    },
-    (args) =>
-      safeTool(async () => {
-        const result = await generateAnnotationPlan(workspace, args);
-        return toolSuccess(
-          result,
-          `Generated annotation plan with ${result.warnings.length} warning(s).`,
-        );
-      }),
-  );
 }
 
 async function readLayerNamesFromGeometryReport(

@@ -20,8 +20,8 @@ export class Workspace {
     this.root = path.resolve(root);
   }
 
-  static fromEnv(): Workspace {
-    return new Workspace(process.env.SF_SYMBOLS_WORKSPACE || process.cwd());
+  static fromCwd(): Workspace {
+    return new Workspace(process.cwd());
   }
 
   resolvePath(inputPath: string): string {
@@ -29,20 +29,9 @@ export class Workspace {
       throw new WorkspaceError("Path must not be empty.");
     }
 
-    const resolved = path.resolve(this.root, inputPath);
-    const relative = path.relative(this.root, resolved);
-
-    if (
-      relative === ".." ||
-      relative.startsWith(`..${path.sep}`) ||
-      path.isAbsolute(relative)
-    ) {
-      throw new WorkspaceError(
-        `Path escapes SF Symbols workspace: ${inputPath}`,
-      );
-    }
-
-    return resolved;
+    return path.isAbsolute(inputPath)
+      ? path.resolve(inputPath)
+      : path.resolve(this.root, inputPath);
   }
 
   relativePath(absolutePath: string): string {

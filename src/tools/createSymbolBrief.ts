@@ -1,16 +1,11 @@
-import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import {
   animationCategoryByTarget,
   DEFAULT_RENDERING_MODES,
 } from "../schemas/common.js";
-import {
-  CreateSymbolBriefInputSchema,
-  type CreateSymbolBriefInput,
-} from "../schemas/symbolBrief.js";
+import type { CreateSymbolBriefInput } from "../schemas/symbolBrief.js";
 import { bulletList, reportMarkdown } from "../output/markdown.js";
 import { writeJsonArtifact, writeMarkdownArtifact } from "../output/writers.js";
 import type { Workspace } from "../workspace.js";
-import { safeTool, toolSuccess } from "./result.js";
 
 export type SymbolBriefOutput = {
   symbolName: string;
@@ -157,27 +152,4 @@ export async function createSymbolBrief(
   }
 
   return output;
-}
-
-export function registerCreateSymbolBriefTool(
-  server: McpServer,
-  workspace: Workspace,
-): void {
-  server.registerTool(
-    "create_symbol_brief",
-    {
-      title: "Create Symbol Brief",
-      description:
-        "Create a normalized custom SF Symbol brief from user intent.",
-      inputSchema: CreateSymbolBriefInputSchema,
-    },
-    (args) =>
-      safeTool(async () => {
-        const result = await createSymbolBrief(workspace, args);
-        return toolSuccess(
-          result,
-          `Created symbol brief for ${result.normalizedName}.`,
-        );
-      }),
-  );
 }

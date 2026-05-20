@@ -1,12 +1,7 @@
-import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { bulletList, reportMarkdown } from "../output/markdown.js";
 import { writeJsonArtifact, writeMarkdownArtifact } from "../output/writers.js";
-import {
-  GenerateImportChecklistInputSchema,
-  type GenerateImportChecklistInput,
-} from "../schemas/xcode.js";
+import type { GenerateImportChecklistInput } from "../schemas/xcode.js";
 import type { Workspace } from "../workspace.js";
-import { safeTool, toolSuccess } from "./result.js";
 
 export type ImportChecklistOutput = {
   checklistMarkdown: string;
@@ -126,23 +121,4 @@ export async function generateImportChecklist(
   }
 
   return output;
-}
-
-export function registerGenerateImportChecklistTool(
-  server: McpServer,
-  workspace: Workspace,
-): void {
-  server.registerTool(
-    "generate_import_checklist",
-    {
-      title: "Generate Import Checklist",
-      description: "Generate a final human checklist for import and testing.",
-      inputSchema: GenerateImportChecklistInputSchema,
-    },
-    (args) =>
-      safeTool(async () => {
-        const result = await generateImportChecklist(workspace, args);
-        return toolSuccess(result, "Generated import checklist.");
-      }),
-  );
 }

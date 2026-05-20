@@ -1,18 +1,13 @@
-import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import {
   animationCategoryByTarget,
   DEFAULT_RENDERING_MODES,
   type AnimationTarget,
   type RenderingMode,
 } from "../schemas/common.js";
-import {
-  GenerateSwiftUsageInputSchema,
-  type GenerateSwiftUsageInput,
-} from "../schemas/xcode.js";
+import type { GenerateSwiftUsageInput } from "../schemas/xcode.js";
 import { bulletList, reportMarkdown } from "../output/markdown.js";
 import { writeArtifacts } from "../output/writers.js";
 import type { Workspace } from "../workspace.js";
-import { safeTool, toolSuccess } from "./result.js";
 
 export type SwiftUsageOutput = {
   swiftMarkdown: string;
@@ -88,28 +83,6 @@ export async function generateSwiftUsage(
   }
 
   return output;
-}
-
-export function registerGenerateSwiftUsageTool(
-  server: McpServer,
-  workspace: Workspace,
-): void {
-  server.registerTool(
-    "generate_swift_usage",
-    {
-      title: "Generate Swift Usage",
-      description: "Generate SwiftUI and UIKit snippets for a custom symbol.",
-      inputSchema: GenerateSwiftUsageInputSchema,
-    },
-    (args) =>
-      safeTool(async () => {
-        const result = await generateSwiftUsage(workspace, args);
-        return toolSuccess(
-          result,
-          `Generated Swift usage snippets with ${result.warnings.length} note(s).`,
-        );
-      }),
-  );
 }
 
 function renderingSnippet(mode: RenderingMode): string {

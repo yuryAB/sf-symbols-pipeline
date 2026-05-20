@@ -56,7 +56,7 @@ Workflow:
 
 Important constraints:
 - Treat this as an SF Symbols template pipeline, not generic SVG creation.
-- This MCP does not operate vector editors directly; use the agent's available editor/MCP/tooling.
+- This skill does not operate vector editors directly; use the agent's available editor tooling.
 - Prefer closed filled paths and outlined strokes.
 - Do not leave hardcoded fill/stroke colors, duplicated fill+stroke visual layers, or fragile overlapping solid bases inside final Symbols artwork.
 - Avoid raster images, live text, filters, blur, shadows, fragile masks, and manual gradients.

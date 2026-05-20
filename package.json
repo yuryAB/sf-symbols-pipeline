@@ -1,21 +1,20 @@
 {
-  "name": "sf-symbols-pipeline-mcp",
+  "name": "sf-symbols-pipeline",
   "version": "0.1.0",
-  "description": "MCP server for custom SF Symbols pipeline validation and artifact generation.",
+  "description": "Agent skill and CLI helpers for custom SF Symbols validation and artifact generation.",
   "type": "module",
   "main": "./dist/index.js",
-  "types": "./dist/server.d.ts",
+  "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "types": "./dist/server.d.ts",
-      "import": "./dist/server.js"
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
     },
     "./cli": "./dist/index.js",
     "./package.json": "./package.json"
   },
-  "mcpName": "io.github.yuryAB/sf-symbols-pipeline",
   "bin": {
-    "sf-symbols-pipeline-mcp": "./dist/index.js"
+    "sfsp": "./dist/index.js"
   },
   "author": {
     "name": "yuryAB",
@@ -23,17 +22,17 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/yuryAB/sf-symbols-pipeline-mcp.git"
+    "url": "https://github.com/yuryAB/sf-symbols-pipeline.git"
   },
-  "homepage": "https://github.com/yuryAB/sf-symbols-pipeline-mcp#readme",
+  "homepage": "https://github.com/yuryAB/sf-symbols-pipeline#readme",
   "bugs": {
-    "url": "https://github.com/yuryAB/sf-symbols-pipeline-mcp/issues"
+    "url": "https://github.com/yuryAB/sf-symbols-pipeline/issues"
   },
   "license": "MIT",
   "keywords": [
-    "mcp",
-    "mcp-server",
-    "model-context-protocol",
+    "agent-skill",
+    "skill",
+    "sfsp",
     "sf-symbols",
     "custom-symbols",
     "apple",
@@ -46,9 +45,7 @@
   "files": [
     "assets",
     "dist",
-    "docs",
-    "examples",
-    "plugins/codex",
+    "skills",
     "README.md"
   ],
   "scripts": {
@@ -63,7 +60,6 @@
     "format": "prettier --write ."
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.29.0",
     "fast-xml-parser": "^5.8.0",
     "zod": "^4.1.12"
   },

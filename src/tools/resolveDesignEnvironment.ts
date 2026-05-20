@@ -1,9 +1,4 @@
-import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import {
-  ResolveDesignEnvironmentInputSchema,
-  type ResolveDesignEnvironmentInput,
-} from "../schemas/designEnvironment.js";
-import { safeTool, toolSuccess } from "./result.js";
+import type { ResolveDesignEnvironmentInput } from "../schemas/designEnvironment.js";
 
 type Confidence = "high" | "medium" | "low";
 
@@ -127,7 +122,7 @@ function resolveRecommendedEditor(
     name: "Ask user or help set up an SVG-capable vector editor",
     confidence: "low",
     reason:
-      "No explicit editor or recognizable vector editing tool was provided to this MCP.",
+      "No explicit editor or recognizable vector editing tool was provided.",
   };
 }
 
@@ -139,7 +134,7 @@ function buildSetupInstructions(
 
   if (input.needsSetupHelp || recommendedEditor.confidence === "low") {
     instructions.push(
-      "Check which vector editing tools or MCP connectors the agent can operate before drawing.",
+      "Check which vector editing tools or integrations the agent can operate before drawing.",
       "If no editor is available, ask the user to choose or install an SVG-capable editor such as Figma, Illustrator, Sketch, Affinity Designer, or Inkscape.",
     );
   }
@@ -158,7 +153,7 @@ function buildWarnings(
   recommendedEditor: EditorCandidate,
 ): string[] {
   const warnings: string[] = [
-    "This MCP cannot inspect the host agent's installed MCPs or editor integrations by itself; pass availableAgentTools when possible.",
+    "This helper cannot inspect the host agent's installed editor integrations by itself; pass availableAgentTools when possible.",
     "There is no single universal official Apple template for every custom symbol; export the template for the selected base symbol from the SF Symbols app.",
   ];
 
@@ -198,24 +193,4 @@ export function resolveDesignEnvironment(
     appleOfficialLinks,
     warnings: buildWarnings(input, recommendedEditor),
   };
-}
-
-export function registerResolveDesignEnvironmentTool(server: McpServer): void {
-  server.registerTool(
-    "resolve_design_environment",
-    {
-      title: "Resolve Design Environment",
-      description:
-        "Choose or guide setup for the vector editor and Apple SF Symbols resources before drawing a custom symbol.",
-      inputSchema: ResolveDesignEnvironmentInputSchema,
-    },
-    (args) =>
-      safeTool(() => {
-        const result = resolveDesignEnvironment(args);
-        return toolSuccess(
-          result,
-          `Resolved design environment guidance for ${result.symbolName}.`,
-        );
-      }),
-  );
 }

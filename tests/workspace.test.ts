@@ -11,20 +11,16 @@ async function tempWorkspace(): Promise<Workspace> {
 }
 
 describe("Workspace", () => {
-  it("prevents escaping the workspace with parent segments", async () => {
+  it("resolves parent segments relative to the current base directory", async () => {
     const workspace = await tempWorkspace();
 
-    expect(() => workspace.resolvePath("../outside.svg")).toThrow(
-      /escapes SF Symbols workspace/,
-    );
+    expect(workspace.resolvePath("../outside.svg")).toMatch(/outside\.svg$/);
   });
 
-  it("prevents escaping the workspace with absolute paths", async () => {
+  it("allows absolute paths without requiring a configured workspace", async () => {
     const workspace = await tempWorkspace();
 
-    expect(() => workspace.resolvePath("/tmp/outside.svg")).toThrow(
-      /escapes SF Symbols workspace/,
-    );
+    expect(workspace.resolvePath("/tmp/outside.svg")).toBe("/tmp/outside.svg");
   });
 
   it("refuses to overwrite writer output unless allowed", async () => {

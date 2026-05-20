@@ -1,7 +1,0 @@
-{
-  "sf-symbols-pipeline": {
-    "command": "npx",
-    "args": ["-y", "github:yuryAB/sf-symbols-pipeline-mcp"],
-    "env": {}
-  }
-}

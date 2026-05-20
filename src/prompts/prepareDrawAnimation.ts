@@ -29,5 +29,5 @@ Workflow:
 6. If using variable templates, verify Ultralight and Black guide point order.
 7. Test Draw/Variable Draw in the SF Symbols app and SwiftUI previews.
 
-This MCP only prepares the guide point plan. Final guide points must be applied and validated in the SF Symbols app.`;
+This skill only prepares the guide point plan. Final guide points must be applied and validated in the SF Symbols app.`;
 }

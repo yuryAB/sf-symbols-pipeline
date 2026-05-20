@@ -1,17 +1,12 @@
-import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { bulletList, fencedJson, reportMarkdown } from "../output/markdown.js";
 import { writeJsonArtifact, writeMarkdownArtifact } from "../output/writers.js";
-import {
-  ValidateSvgTemplateInputSchema,
-  type ValidateSvgTemplateInput,
-} from "../schemas/validation.js";
+import type { ValidateSvgTemplateInput } from "../schemas/validation.js";
 import type { Workspace } from "../workspace.js";
 import {
   parseSvgFromWorkspace,
   validateTemplateHeuristics,
   type ValidationReport,
 } from "../svg/templateAnalysis.js";
-import { safeTool, toolSuccess } from "./result.js";
 
 const EMPTY_STATS = {
   pathCount: 0,
@@ -89,28 +84,5 @@ export function validationReportMarkdown(
         ? [{ title: "SF Symbol Template", body: fencedJson(report.template) }]
         : []),
     ],
-  );
-}
-
-export function registerValidateSvgTemplateTool(
-  server: McpServer,
-  workspace: Workspace,
-): void {
-  server.registerTool(
-    "validate_svg_template",
-    {
-      title: "Validate SVG Template",
-      description:
-        "Validate an exported SVG against custom SF Symbols readiness heuristics or final template structure.",
-      inputSchema: ValidateSvgTemplateInputSchema,
-    },
-    (args) =>
-      safeTool(async () => {
-        const result = await runValidateSvgTemplate(workspace, args);
-        return toolSuccess(
-          result,
-          `SVG validation ${result.passed ? "passed" : "found issues"} with ${result.errors.length} error(s) and ${result.warnings.length} warning(s).`,
-        );
-      }),
   );
 }

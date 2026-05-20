@@ -1,17 +1,12 @@
-import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import path from "node:path";
 import { toPrettyJson } from "../output/json.js";
-import {
-  CreateXcassetsSymbolSetInputSchema,
-  type CreateXcassetsSymbolSetInput,
-} from "../schemas/xcode.js";
+import type { CreateXcassetsSymbolSetInput } from "../schemas/xcode.js";
 import {
   parseSvgFromWorkspace,
   validateTemplateHeuristics,
 } from "../svg/templateAnalysis.js";
 import type { Workspace } from "../workspace.js";
 import { normalizeSymbolName } from "./createSymbolBrief.js";
-import { safeTool, toolSuccess } from "./result.js";
 
 export type XcassetsSymbolSetOutput = {
   assetCatalogPath: string;
@@ -117,27 +112,4 @@ export async function createXcassetsSymbolSet(
     warnings,
     writtenFiles,
   };
-}
-
-export function registerCreateXcassetsSymbolSetTool(
-  server: McpServer,
-  workspace: Workspace,
-): void {
-  server.registerTool(
-    "create_xcassets_symbol_set",
-    {
-      title: "Create Xcassets Symbol Set",
-      description:
-        "Create a conservative Xcode .symbolset asset catalog scaffold for a custom symbol.",
-      inputSchema: CreateXcassetsSymbolSetInputSchema,
-    },
-    (args) =>
-      safeTool(async () => {
-        const result = await createXcassetsSymbolSet(workspace, args);
-        return toolSuccess(
-          result,
-          `Created Xcode symbol asset scaffold at ${result.symbolSetPath}.`,
-        );
-      }),
-  );
 }

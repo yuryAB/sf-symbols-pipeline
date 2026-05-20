@@ -39,7 +39,7 @@ Recommended generated artifacts:
 - SymbolAnimationPreview.swift
 - Assets.xcassets/<symbolName>.symbolset/
 
-All generated paths must stay inside SF_SYMBOLS_WORKSPACE.
+Generated paths may be absolute or relative to the current project. Prefer writing artifacts near the source SVG or in an explicit output directory.
 `,
   },
 ];

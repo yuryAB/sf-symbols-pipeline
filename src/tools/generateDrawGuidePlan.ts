@@ -1,10 +1,8 @@
-import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { bulletList, reportMarkdown } from "../output/markdown.js";
 import { writeJsonArtifact, writeMarkdownArtifact } from "../output/writers.js";
 import { SymbolNameSchema } from "../schemas/common.js";
 import type { Workspace } from "../workspace.js";
-import { safeTool, toolSuccess } from "./result.js";
 
 const DrawSemanticPartSchema = z.object({
   name: z.string().min(1),
@@ -154,26 +152,4 @@ export async function generateDrawGuidePlan(
   }
 
   return output;
-}
-
-export function registerGenerateDrawGuidePlanTool(
-  server: McpServer,
-  workspace: Workspace,
-): void {
-  server.registerTool(
-    "generate_draw_guide_plan",
-    {
-      title: "Generate Draw Guide Plan",
-      description: "Generate a plan for Draw and Variable Draw guide points.",
-      inputSchema: GenerateDrawGuidePlanInputSchema,
-    },
-    (args) =>
-      safeTool(async () => {
-        const result = await generateDrawGuidePlan(workspace, args);
-        return toolSuccess(
-          result,
-          `Generated Draw guide plan with ${result.warnings.length} warning(s).`,
-        );
-      }),
-  );
 }
