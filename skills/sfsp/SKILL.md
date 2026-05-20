@@ -1,11 +1,6 @@
 ---
 name: sfsp
 description: Use this skill for SF Symbols Pipeline work: custom SF Symbols, exported SVG validation, symbol geometry inspection, variable symbol source comparison, rendering or animation annotation planning, Xcode .symbolset assets, and SwiftUI/UIKit usage snippets.
-license: MIT
-compatibility: Works in Codex, Claude Code, Windsurf, GitHub Copilot, Gemini CLI, and other Agent Skills-compatible coding agents. Optional helper CLI requires Node.js 20+.
-metadata:
-  display_name: SF Symbols Pipeline
-  short_description: Validate and prepare custom SF Symbols.
 ---
 
 # SF Symbols Pipeline

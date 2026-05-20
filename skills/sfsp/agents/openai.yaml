@@ -1,0 +1,7 @@
+interface:
+  display_name: "SF Symbols Pipeline"
+  short_description: "Validate and prepare custom SF Symbols"
+  default_prompt: "Use $sfsp to audit, validate, and prepare custom SF Symbols from SVGs for the SF Symbols app, Xcode .symbolset assets, and SwiftUI/UIKit usage."
+
+policy:
+  allow_implicit_invocation: true
